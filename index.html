@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>مولّد JSON (صندوق واحد + شروح إنجليزية + Almaany)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  :root{--bd:#e6e6e6;--muted:#666}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:18px;color:#111}
+  h1{font-size:20px;margin:0 0 10px}
+  .muted{color:var(--muted);font-size:12px}
+  textarea{width:100%;min-height:320px;border:1px solid var(--bd);border-radius:12px;padding:12px;
+           font-family:ui-monospace,Consolas,Monaco,monospace;font-size:14px}
+  button{padding:10px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+  .ok{color:#0b7a00}.err{color:#b00020}
+</style>
+</head>
+<body>
+<h1>مولّد JSON من صندوق واحد (يضيف الشروح الإنجليزية تلقائيًا + روابط ألمعاني)</h1>
+<div class="muted" style="margin-bottom:6px">
+صيغة مختصرة (9 حقول): <b>word | root | ماضٍ | مضارع | أمر | ماضٍ مجهول | مضارع مجهول | مصدر | en-base</b><br/>
+صيغة كاملة (16 حقلًا): نفس ترتيبك السابق. أي عنصر بلا شرح بعد <b>—</b> سيُكمَّل تلقائيًا.
+</div>
+
+<textarea id="box" placeholder="مثال (9 حقول):
+رجع | ر-ج-ع | رَجَعَ | يَرْجِعُ | اِرْجِعْ | رُجِعَ | يُرْجَعُ | رُجُوعٌ | to return
+قال | ق-و-ل | قَالَ | يَقُولُ | قُلْ | قِيلَ | يُقَالُ | قَوْلٌ | to say
+
+مثال (16 حقلًا):
+رجع | ر-ج-ع | رَجَعَ — he returned | يَرْجِعُ — he is returning / he will return | اِرْجِعْ — return! | رُجِعَ — he was returned | يُرْجَعُ — he is being returned / he will be returned | رُجُوعٌ — returning | رَاجِع — the one who returns | مَرْجُوع — the one who was returned | مَرْجِع — time/place of returning | مِرْجَع — tool used for returning (figurative) | رُجُوعِيّ — related to return | to return | Almaany — رجع | https://www.almaany.com/en/dict/ar-en/رجع/"></textarea>
+
+<div class="row">
+  <button id="gen">Generate JSON</button>
+  <span id="status" class="muted"></span>
+</div>
+
+<script>
+(function(){
+  const ta = document.getElementById('box');
+  const gen = document.getElementById('gen');
+  const status = document.getElementById('status');
+  const AR_DIAC = /[ًٌٍَُِّْۡ]/g;
+
+  // ----- tiny English helpers -----
+  const irregularPast = {say:"said", go:"went", come:"came", write:"wrote", take:"took",
+    eat:"ate", drink:"drank", do:"did", make:"made", get:"got", give:"gave", see:"seen",
+    know:"knew", think:"thought", tell:"told", leave:"left", find:"found", become:"became",
+    begin:"began", keep:"kept", put:"put", bring:"brought", feel:"felt", return:"returned",
+    work:"worked", help:"helped", ask:"asked", hit:"hit"};
+  const irregularPart = {say:"said", go:"gone", come:"come", write:"written", take:"taken",
+    eat:"eaten", drink:"drunk", do:"done", make:"made", get:"gotten", give:"given", see:"seen",
+    know:"known", think:"thought", tell:"told", leave:"left", find:"found", become:"become",
+    begin:"begun", keep:"kept", put:"put", bring:"brought", feel:"felt", return:"returned",
+    work:"worked", help:"helped", ask:"asked", hit:"hit"};
+
+  function normBase(s){ return String(s||"").trim().replace(/^to\s+/i,'').trim(); }
+  function gerund(b){ if(!b) return ""; if(/e$/.test(b)&&!/ee$/.test(b)) return b.replace(/e$/,'ing');
+    if(/[aeiou][^aeiou]$/.test(b)) return b+b.slice(-1)+"ing"; return b+"ing"; }
+  function thirdSing(b){ if(!b) return ""; if(/(s|x|sh|ch|z)$/.test(b)) return b+"es";
+    if(/[^aeiou]y$/.test(b)) return b.replace(/y$/,'ies'); return b+"s"; }
+  function pastSimple(b){ if(!b) return ""; if(irregularPast[b]) return irregularPast[b];
+    if(/e$/.test(b)) return b+"d"; if(/[^aeiou]y$/.test(b)) return b.replace(/y$/,'ied');
+    if(/[aeiou][^aeiou]$/.test(b)) return b+b.slice(-1)+"ed"; return b+"ed"; }
+  function pastPart(b){ if(!b) return ""; return irregularPart[b] || pastSimple(b); }
+  function withGloss(ar, en){ return en ? `${ar} — ${en}` : ar; }
+
+  // ----- Arabic nominal builders for triliteral roots (simple patterns) -----
+  function splitRoot(r){ const p = (r||"").replace(/\s+/g,'').split('-').filter(Boolean); return p.length===3?p:["","",""]; }
+  function replFAL(t, r){ const [F,A,L]=splitRoot(r); return t.replace(/ف/g,F||"ف").replace(/ع/g,A||"ع").replace(/ل/g,L||"ل"); }
+  function buildNominals(root, enPack, baseWord){
+    const faail = replFAL("فَاعِل", root);
+    const maf3ul = replFAL("مَفْعُول", root);
+    const makan  = replFAL("مَفْعَل", root);
+    const alat   = replFAL("مِفْعَل", root);
+    const nisba  = (baseWord||"").replace(AR_DIAC,'').replace(/ة$/,'ت') + "يّ";
+    return {
+      faail: withGloss(faail,  enPack.faail),
+      maf3ul: withGloss(maf3ul, enPack.maf3ul),
+      makan: withGloss(makan,  enPack.makan),
+      alat:  withGloss(alat,   enPack.alat),
+      nisba: withGloss(nisba,  enPack.nisba)
+    };
+  }
+
+  // ----- English pack with "he ..." for passives -----
+  function buildEnglishPack(enBase){
+    const base = normBase(enBase);
+    const gGer = gerund(base), g3s = thirdSing(base), gPast = pastSimple(base), gPart = pastPart(base);
+    return {
+      base,
+      past:       `he ${gPast}`,
+      present:    `he is ${gGer} / he will ${base}`,
+      imperative: `${base}!`,
+      pastPass:   `he was ${gPart}`,
+      presPass:   `he is being ${gPart} / he will be ${gPart}`,
+      masdar:     `${gGer}`,
+      faail:      `the one who ${g3s}`,
+      maf3ul:     `the one/thing that is ${gPart}`,
+      makan:      `time or place of ${gGer}`,
+      alat:       `tool/instrument used for ${gGer}`,
+      nisba:      `related to ${base}`,
+      trans:      `to ${base}`
+    };
+  }
+
+  function parseLine(raw){
+    const parts = raw.split('|').map(s=>s.trim());
+    if(parts.length===9){
+      // Compact
+      const [word, root, past, pres, amr, pastP, presP, masdar, enBase] = parts;
+      const en = buildEnglishPack(enBase);
+      const almaanyLabel = `Almaany — ${word}`;
+      const almaanyURL = `https://www.almaany.com/en/dict/ar-en/${encodeURIComponent(word)}/`;
+
+      // Build Arabic nominals from root (so you don't have to type them)
+      const noms = buildNominals(root, en, word);
+
+      return {
+        word, root,
+        v_madi:    withGloss(past,  en.past),
+        v_mudari:  withGloss(pres,  en.present),
+        v_amr:     withGloss(amr,   en.imperative),
+        v_madiP:   withGloss(pastP, en.pastPass),
+        v_mudariP: withGloss(presP, en.presPass),
+        masdarOut: withGloss(masdar, en.masdar),
+        faail: noms.faail, maf3ul: noms.maf3ul, makan: noms.makan, alat: noms.alat, nisba: noms.nisba,
+        enTrans: en.trans, sourceLabel: almaanyLabel, sourceURL: almaanyURL
+      };
+    } else if(parts.length===16){
+      // Full
+      const [word, root, p1,p2,p3,p4,p5, m1, n1,n2,n3,n4,n5, enBase, srcLabel, srcURL] = parts;
+      const en = buildEnglishPack(enBase);
+      const ensure = (s,g)=> /—/.test(s) ? s : withGloss(s,g);
+      return {
+        word, root,
+        v_madi:    ensure(p1, en.past),
+        v_mudari:  ensure(p2, en.present),
+        v_amr:     ensure(p3, en.imperative),
+        v_madiP:   ensure(p4, en.pastPass),
+        v_mudariP: ensure(p5, en.presPass),
+        masdarOut: ensure(m1, en.masdar),
+        faail: ensure(n1, en.faail),
+        maf3ul: ensure(n2, en.maf3ul),
+        makan: ensure(n3, en.makan),
+        alat:  ensure(n4, en.alat),
+        nisba: ensure(n5, en.nisba),
+        enTrans: en.trans,
+        sourceLabel: srcLabel || `Almaany — ${word}`,
+        sourceURL:   srcURL   || `https://www.almaany.com/en/dict/ar-en/${encodeURIComponent(word)}/`
+      };
+    } else {
+      throw new Error(`عدد الحقول ${parts.length} غير مدعوم. استخدم 9 أو 16 حقلاً.`);
+    }
+  }
+
+  function buildEntry(p){
+    return {
+      [p.word]: {
+        "root": p.root,
+        "pos": ["فعل"],
+        "verb": {
+          "فعل ماضٍ معروف": p.v_madi,
+          "فعل مضارع معروف": p.v_mudari,
+          "فعل أمر": p.v_amr,
+          "فعل ماضٍ مجهول": p.v_madiP,
+          "فعل مضارع مجهول": p.v_mudariP
+        },
+        "masdar": [ p.masdarOut ],
+        "nominals": {
+          "اسم فاعل":  p.faail,
+          "اسم مفعول": p.maf3ul,
+          "اسم زمان/مكان": p.makan,
+          "اسم آلة":  p.alat,
+          "نِسبة": p.nisba
+        },
+        "translation": {
+          "en": p.enTrans,
+          "source": p.sourceLabel,
+          "url": p.sourceURL
+        }
+      }
+    };
+  }
+
+  function downloadJSON(name, text){
+    const blob = new Blob([text], {type:"application/json;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=name; document.body.appendChild(a); a.click();
+    URL.revokeObjectURL(url); a.remove();
+  }
+
+  gen.addEventListener('click', ()=>{
+    const lines = ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    if(!lines.length){ status.textContent="أدخل سطورًا أولًا."; return; }
+
+    const out = {};
+    const errors = [];
+    let ok = 0;
+
+    for(let i=0;i<lines.length;i++){
+      try{
+        const parsed = parseLine(lines[i]);
+        Object.assign(out, buildEntry(parsed));
+        ok++;
+      }catch(e){
+        errors.push(`سطر ${i+1}: ${e.message}`);
+      }
+    }
+
+    if(errors.length){
+      status.innerHTML = `<span class="err">أخطاء: ${errors.length}</span> — أول خطأ: ${errors[0]}`;
+      return;
+    }
+
+    downloadJSON('morph.json', JSON.stringify(out, null, 2));
+    status.innerHTML = `<span class="ok">تم إنشاء ${ok} مدخلًا (morph.json)</span>`;
+  });
+})();
+</script>
+</body>
+</html>
