@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8" />
-<title>مولّد JSON (صندوق واحد + شروح إنجليزية + Almaany)</title>
+<title>مولّد JSON (صندوق واحد + Hans Wehr + Almaany)</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
   :root{--bd:#e6e6e6;--muted:#666}
@@ -14,13 +14,24 @@
   button{padding:10px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer}
   .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
   .ok{color:#0b7a00}.err{color:#b00020}
+  .file{border:1px dashed var(--bd);padding:8px 10px;border-radius:8px}
+  input[type="file"]{display:none}
+  label.file{cursor:pointer}
 </style>
 </head>
 <body>
-<h1>مولّد JSON من صندوق واحد (يضيف الشروح الإنجليزية تلقائيًا + روابط ألمعاني)</h1>
+<h1>مولّد JSON من صندوق واحد (Hans Wehr أولًا، وإلا رابط ألمعاني)</h1>
 <div class="muted" style="margin-bottom:6px">
 صيغة مختصرة (9 حقول): <b>word | root | ماضٍ | مضارع | أمر | ماضٍ مجهول | مضارع مجهول | مصدر | en-base</b><br/>
 صيغة كاملة (16 حقلًا): نفس ترتيبك السابق. أي عنصر بلا شرح بعد <b>—</b> سيُكمَّل تلقائيًا.
+</div>
+
+<div class="row" style="margin-bottom:8px">
+  <label class="file">
+    <input id="hwFile" type="file" accept="application/json">
+    حمّل قاموس Hans Wehr (JSON)
+  </label>
+  <span class="muted">الأولوية: Hans Wehr → (إن لم يوجد) Almaany (مع الرابط).</span>
 </div>
 
 <textarea id="box" placeholder="مثال (9 حقول):
@@ -40,13 +51,31 @@
   const ta = document.getElementById('box');
   const gen = document.getElementById('gen');
   const status = document.getElementById('status');
-  const AR_DIAC = /[ًٌٍَُِّْۡ]/g;
+  const hwFile = document.getElementById('hwFile');
 
-  // ----- tiny English helpers -----
+  // ===== Hans Wehr store (loaded from user JSON)
+  let HW = {};
+  function loadHWJson(file){
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const j = JSON.parse(r.result);
+        // allow both {"كتب":"..."} and {"كتب":{"gloss":"..."}} forms
+        HW = j || {};
+        status.innerHTML = '<span class="ok">تم تحميل Hans Wehr</span>';
+      } catch(e){
+        status.innerHTML = '<span class="err">ملف JSON غير صالح</span>';
+      }
+    };
+    r.readAsText(file, 'utf-8');
+  }
+  hwFile.addEventListener('change', ()=>{ if(hwFile.files[0]) loadHWJson(hwFile.files[0]); });
+
+  // ===== English helpers (fallback if HW not found)
   const irregularPast = {say:"said", go:"went", come:"came", write:"wrote", take:"took",
     eat:"ate", drink:"drank", do:"did", make:"made", get:"got", give:"gave", see:"seen",
     know:"knew", think:"thought", tell:"told", leave:"left", find:"found", become:"became",
-    begin:"began", keep:"kept", put:"put", bring:"brought", feel:"felt", return:"returned",
+    begin:"begun", keep:"kept", put:"put", bring:"brought", feel:"felt", return:"returned",
     work:"worked", help:"helped", ask:"asked", hit:"hit"};
   const irregularPart = {say:"said", go:"gone", come:"come", write:"written", take:"taken",
     eat:"eaten", drink:"drunk", do:"done", make:"made", get:"gotten", give:"given", see:"seen",
@@ -65,7 +94,8 @@
   function pastPart(b){ if(!b) return ""; return irregularPart[b] || pastSimple(b); }
   function withGloss(ar, en){ return en ? `${ar} — ${en}` : ar; }
 
-  // ----- Arabic nominal builders for triliteral roots (simple patterns) -----
+  // ===== Arabic nominal builders (simple triliteral patterns)
+  const AR_DIAC = /[ًٌٍَُِّْۡ]/g;
   function splitRoot(r){ const p = (r||"").replace(/\s+/g,'').split('-').filter(Boolean); return p.length===3?p:["","",""]; }
   function replFAL(t, r){ const [F,A,L]=splitRoot(r); return t.replace(/ف/g,F||"ف").replace(/ع/g,A||"ع").replace(/ل/g,L||"ل"); }
   function buildNominals(root, enPack, baseWord){
@@ -83,37 +113,58 @@
     };
   }
 
-  // ----- English pack with "he ..." for passives -----
+  // ===== Translation pack (fallback only)
   function buildEnglishPack(enBase){
     const base = normBase(enBase);
     const gGer = gerund(base), g3s = thirdSing(base), gPast = pastSimple(base), gPart = pastPart(base);
     return {
       base,
-      past:       `he ${gPast}`,
-      present:    `he is ${gGer} / he will ${base}`,
-      imperative: `${base}!`,
-      pastPass:   `he was ${gPart}`,
-      presPass:   `he is being ${gPart} / he will be ${gPart}`,
-      masdar:     `${gGer}`,
-      faail:      `the one who ${g3s}`,
-      maf3ul:     `the one/thing that is ${gPart}`,
-      makan:      `time or place of ${gGer}`,
-      alat:       `tool/instrument used for ${gGer}`,
-      nisba:      `related to ${base}`,
-      trans:      `to ${base}`
+      past:       base ? `he ${gPast}` : "",
+      present:    base ? `he is ${gGer} / he will ${base}` : "",
+      imperative: base ? `${base}!` : "",
+      pastPass:   base ? `he was ${gPart}` : "",
+      presPass:   base ? `he is being ${gPart} / he will be ${gPart}` : "",
+      masdar:     base ? `${gGer}` : "",
+      faail:      base ? `the one who ${g3s}` : "",
+      maf3ul:     base ? `the one/thing that is ${gPart}` : "",
+      makan:      base ? `time or place of ${gGer}` : "",
+      alat:       base ? `tool/instrument used for ${gGer}` : "",
+      nisba:      base ? `related to ${base}` : "",
+      trans:      base ? `to ${base}` : ""
     };
   }
+
+  // ===== Hans Wehr lookup (local JSON)
+  function getHWGloss(word){
+    if(!word) return null;
+    if(!HW || typeof HW!=='object') return null;
+    // try exact, then remove leading ال
+    const rec = HW[word] || HW[word.replace(/^ال/,'')];
+    if(!rec) return null;
+    if(typeof rec === 'string') return rec;
+    if(rec && typeof rec === 'object'){
+      return rec.gloss || rec.translation || rec.g || null;
+    }
+    return null;
+  }
+
+  // ===== Parsers
+  function almaanyLabel(w){ return `Almaany — ${w}`; }
+  function almaanyURL(w){ return `https://www.almaany.com/en/dict/ar-en/${encodeURIComponent(w)}/`; }
 
   function parseLine(raw){
     const parts = raw.split('|').map(s=>s.trim());
     if(parts.length===9){
       // Compact
       const [word, root, past, pres, amr, pastP, presP, masdar, enBase] = parts;
-      const en = buildEnglishPack(enBase);
-      const almaanyLabel = `Almaany — ${word}`;
-      const almaanyURL = `https://www.almaany.com/en/dict/ar-en/${encodeURIComponent(word)}/`;
 
-      // Build Arabic nominals from root (so you don't have to type them)
+      // Prefer HW gloss if present; else fallback to enBase
+      const hw = getHWGloss(word);
+      const enTrans = hw || (enBase ? `to ${enBase.replace(/^to\\s+/i,'')}` : "");
+      const sourceLabel = hw ? "Hans Wehr (local JSON)" : almaanyLabel(word);
+      const sourceURL   = almaanyURL(word);
+
+      const en = buildEnglishPack(enBase);
       const noms = buildNominals(root, en, word);
 
       return {
@@ -125,13 +176,17 @@
         v_mudariP: withGloss(presP, en.presPass),
         masdarOut: withGloss(masdar, en.masdar),
         faail: noms.faail, maf3ul: noms.maf3ul, makan: noms.makan, alat: noms.alat, nisba: noms.nisba,
-        enTrans: en.trans, sourceLabel: almaanyLabel, sourceURL: almaanyURL
+        enTrans, sourceLabel, sourceURL
       };
     } else if(parts.length===16){
       // Full
       const [word, root, p1,p2,p3,p4,p5, m1, n1,n2,n3,n4,n5, enBase, srcLabel, srcURL] = parts;
+
+      // Prefer HW; else keep user's provided enBase
+      const hw = getHWGloss(word);
       const en = buildEnglishPack(enBase);
       const ensure = (s,g)=> /—/.test(s) ? s : withGloss(s,g);
+
       return {
         word, root,
         v_madi:    ensure(p1, en.past),
@@ -145,9 +200,9 @@
         makan: ensure(n3, en.makan),
         alat:  ensure(n4, en.alat),
         nisba: ensure(n5, en.nisba),
-        enTrans: en.trans,
-        sourceLabel: srcLabel || `Almaany — ${word}`,
-        sourceURL:   srcURL   || `https://www.almaany.com/en/dict/ar-en/${encodeURIComponent(word)}/`
+        enTrans: hw || (enBase ? `to ${enBase.replace(/^to\\s+/i,'')}` : ""),
+        sourceLabel: hw ? "Hans Wehr (local JSON)" : (srcLabel || almaanyLabel(word)),
+        sourceURL:   srcURL || almaanyURL(word)
       };
     } else {
       throw new Error(`عدد الحقول ${parts.length} غير مدعوم. استخدم 9 أو 16 حقلاً.`);
@@ -221,3 +276,4 @@
 </script>
 </body>
 </html>
+
