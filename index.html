@@ -1,279 +1,394 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8" />
-<title>مولّد JSON (صندوق واحد + Hans Wehr + Almaany)</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<style>
-  :root{--bd:#e6e6e6;--muted:#666}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:18px;color:#111}
-  h1{font-size:20px;margin:0 0 10px}
-  .muted{color:var(--muted);font-size:12px}
-  textarea{width:100%;min-height:320px;border:1px solid var(--bd);border-radius:12px;padding:12px;
-           font-family:ui-monospace,Consolas,Monaco,monospace;font-size:14px}
-  button{padding:10px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer}
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
-  .ok{color:#0b7a00}.err{color:#b00020}
-  .file{border:1px dashed var(--bd);padding:8px 10px;border-radius:8px}
-  input[type="file"]{display:none}
-  label.file{cursor:pointer}
-</style>
+  <meta charset="utf-8" />
+  <title>مولِّد JSON (أفعال القرآن – Hans Wehr + Almaany)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bd:#e6e6e6; --bg:#f9fafb; --muted:#6b7280; --ink:#0f172a; --ok:#0b7a00; --err:#b00020; }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--ink);background:#fff}
+    header{padding:18px 16px;border-bottom:1px solid var(--bd);background:var(--bg)}
+    h1{margin:0 0 6px;font-size:20px}
+    .muted{color:var(--muted);font-size:13px}
+    main{padding:16px;max-width:1100px;margin:auto}
+    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+    .card{border:1px solid var(--bd);border-radius:12px;background:#fff}
+    .card > .hd{padding:10px 12px;border-bottom:1px solid var(--bd);font-weight:600}
+    .card > .bd{padding:12px}
+    label{display:block;font-size:13px;margin-bottom:6px}
+    input, textarea, select{
+      width:100%;padding:10px;border:1px solid var(--bd);border-radius:10px;background:#fff;font-size:14px
+    }
+    textarea{min-height:84px;resize:vertical;font-family:ui-monospace,Consolas,Monaco,monospace}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    .row > *{flex:1}
+    .btn{padding:10px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer}
+    .btn.primary{background:#111;color:#fff;border-color:#111}
+    .btn.ok{border-color:var(--ok);color:var(--ok)}
+    .btn.warn{border-color:var(--err);color:var(--err)}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-top:1px solid var(--bd);padding:8px 10px;text-align:right}
+    th{background:var(--bg);font-weight:600}
+    code{font-family:ui-monospace,Consolas,Monaco,monospace}
+    .pill{font-size:12px;padding:3px 8px;border:1px solid var(--bd);border-radius:999px;background:var(--bg)}
+    .foot{display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;margin-top:10px}
+    .left{display:flex;gap:8px;flex-wrap:wrap}
+    .sr{font-size:12px}
+  </style>
 </head>
 <body>
-<h1>مولّد JSON من صندوق واحد (Hans Wehr أولًا، وإلا رابط ألمعاني)</h1>
-<div class="muted" style="margin-bottom:6px">
-صيغة مختصرة (9 حقول): <b>word | root | ماضٍ | مضارع | أمر | ماضٍ مجهول | مضارع مجهول | مصدر | en-base</b><br/>
-صيغة كاملة (16 حقلًا): نفس ترتيبك السابق. أي عنصر بلا شرح بعد <b>—</b> سيُكمَّل تلقائيًا.
-</div>
+  <header>
+    <h1>مولِّد JSON للألفاظ والأفعال (Hans Wehr + Almaany)</h1>
+    <div class="muted">اكتب الجذر، النوع، الصيغ، والمعاني الإنجليزية. أضف عدّة مداخل ثم نزّل ملف JSON أو انسخه.</div>
+  </header>
 
-<div class="row" style="margin-bottom:8px">
-  <label class="file">
-    <input id="hwFile" type="file" accept="application/json">
-    حمّل قاموس Hans Wehr (JSON)
-  </label>
-  <span class="muted">الأولوية: Hans Wehr → (إن لم يوجد) Almaany (مع الرابط).</span>
-</div>
+  <main class="grid">
+    <!-- Input form -->
+    <section class="card" style="grid-column: span 7;">
+      <div class="hd">إضافة/تعديل مُدخل</div>
+      <div class="bd">
+        <div class="grid" style="grid-template-columns: repeat(12,1fr); gap:10px;">
+          <div style="grid-column: span 6;">
+            <label>اللفظة (lemma)</label>
+            <input id="lemma" placeholder="رَجَعَ / قالَ / كتب…" />
+          </div>
+          <div style="grid-column: span 6;">
+            <label>الجذر (root)</label>
+            <input id="root" placeholder="ر-ج-ع" />
+          </div>
 
-<textarea id="box" placeholder="مثال (9 حقول):
-رجع | ر-ج-ع | رَجَعَ | يَرْجِعُ | اِرْجِعْ | رُجِعَ | يُرْجَعُ | رُجُوعٌ | to return
-قال | ق-و-ل | قَالَ | يَقُولُ | قُلْ | قِيلَ | يُقَالُ | قَوْلٌ | to say
+          <div style="grid-column: span 4;">
+            <label>النوع (POS)</label>
+            <select id="pos">
+              <option value="فعل">فعل</option>
+              <option value="اسم">اسم</option>
+              <option value="حرف">حرف</option>
+            </select>
+          </div>
+          <div style="grid-column: span 8;">
+            <label>المعنى الأساسي بالإنجليزية (base gloss)</label>
+            <input id="base_en" placeholder="to return / return" />
+          </div>
 
-مثال (16 حقلًا):
-رجع | ر-ج-ع | رَجَعَ — he returned | يَرْجِعُ — he is returning / he will return | اِرْجِعْ — return! | رُجِعَ — he was returned | يُرْجَعُ — he is being returned / he will be returned | رُجُوعٌ — returning | رَاجِع — the one who returns | مَرْجُوع — the one who was returned | مَرْجِع — time/place of returning | مِرْجَع — tool used for returning (figurative) | رُجُوعِيّ — related to return | to return | Almaany — رجع | https://www.almaany.com/en/dict/ar-en/رجع/"></textarea>
+          <div style="grid-column: span 12;">
+            <div class="row">
+              <div>
+                <label>ماضٍ معروف</label>
+                <input id="f_past_a" placeholder="رَجَعَ" />
+              </div>
+              <div>
+                <label>مضارع معروف</label>
+                <input id="f_pres_a" placeholder="يَرجِعُ" />
+              </div>
+              <div>
+                <label>أمر</label>
+                <input id="f_imper" placeholder="اِرجِعْ" />
+              </div>
+            </div>
+          </div>
 
-<div class="row">
-  <button id="gen">Generate JSON</button>
-  <span id="status" class="muted"></span>
-</div>
+          <div style="grid-column: span 12;">
+            <div class="row">
+              <div>
+                <label>ماضٍ مجهول</label>
+                <input id="f_past_p" placeholder="رُجِعَ" />
+              </div>
+              <div>
+                <label>مضارع مجهول</label>
+                <input id="f_pres_p" placeholder="يُرجَعُ" />
+              </div>
+              <div>
+                <label>مصدر (افصل بفواصل)</label>
+                <input id="masdar" placeholder="رُجوع، رَجْع" />
+              </div>
+            </div>
+          </div>
 
-<script>
-(function(){
-  const ta = document.getElementById('box');
-  const gen = document.getElementById('gen');
-  const status = document.getElementById('status');
-  const hwFile = document.getElementById('hwFile');
+          <div style="grid-column: span 12;">
+            <div class="row">
+              <div>
+                <label>اسم فاعل</label>
+                <input id="ism_fael" placeholder="راجِع" />
+              </div>
+              <div>
+                <label>اسم مفعول</label>
+                <input id="ism_mafoul" placeholder="مَرجوع" />
+              </div>
+              <div>
+                <label>اسم زمان/مكان</label>
+                <input id="ism_zm" placeholder="مَرجِع / مَرجَع" />
+              </div>
+              <div>
+                <label>اسم آلة</label>
+                <input id="ism_ala" placeholder="—" />
+              </div>
+            </div>
+          </div>
 
-  // ===== Hans Wehr store (loaded from user JSON)
-  let HW = {};
-  function loadHWJson(file){
-    const r = new FileReader();
-    r.onload = () => {
-      try {
-        const j = JSON.parse(r.result);
-        // allow both {"كتب":"..."} and {"كتب":{"gloss":"..."}} forms
-        HW = j || {};
-        status.innerHTML = '<span class="ok">تم تحميل Hans Wehr</span>';
-      } catch(e){
-        status.innerHTML = '<span class="err">ملف JSON غير صالح</span>';
-      }
-    };
-    r.readAsText(file, 'utf-8');
-  }
-  hwFile.addEventListener('change', ()=>{ if(hwFile.files[0]) loadHWJson(hwFile.files[0]); });
+          <div style="grid-column: span 12;">
+            <label>ملاحظات/مصادر (اختياري)</label>
+            <textarea id="notes" placeholder="Hans Wehr / Almaany URL أو ملاحظات أخرى"></textarea>
+          </div>
 
-  // ===== English helpers (fallback if HW not found)
-  const irregularPast = {say:"said", go:"went", come:"came", write:"wrote", take:"took",
-    eat:"ate", drink:"drank", do:"did", make:"made", get:"got", give:"gave", see:"seen",
-    know:"knew", think:"thought", tell:"told", leave:"left", find:"found", become:"became",
-    begin:"begun", keep:"kept", put:"put", bring:"brought", feel:"felt", return:"returned",
-    work:"worked", help:"helped", ask:"asked", hit:"hit"};
-  const irregularPart = {say:"said", go:"gone", come:"come", write:"written", take:"taken",
-    eat:"eaten", drink:"drunk", do:"done", make:"made", get:"gotten", give:"given", see:"seen",
-    know:"known", think:"thought", tell:"told", leave:"left", find:"found", become:"become",
-    begin:"begun", keep:"kept", put:"put", bring:"brought", feel:"felt", return:"returned",
-    work:"worked", help:"helped", ask:"asked", hit:"hit"};
+          <div style="grid-column: span 12;" class="foot">
+            <div class="left">
+              <button class="btn" id="autoFillEn">توليد عبارات إنجليزية تلقائياً</button>
+              <button class="btn ok" id="addEntry">إضافة / تحديث المُدخل</button>
+              <button class="btn warn" id="resetForm">تفريغ الحقول</button>
+            </div>
+            <div class="sr muted">النظام يحفظ تلقائياً في المتصفح (LocalStorage).</div>
+          </div>
+        </div>
+      </div>
+    </section>
 
-  function normBase(s){ return String(s||"").trim().replace(/^to\s+/i,'').trim(); }
-  function gerund(b){ if(!b) return ""; if(/e$/.test(b)&&!/ee$/.test(b)) return b.replace(/e$/,'ing');
-    if(/[aeiou][^aeiou]$/.test(b)) return b+b.slice(-1)+"ing"; return b+"ing"; }
-  function thirdSing(b){ if(!b) return ""; if(/(s|x|sh|ch|z)$/.test(b)) return b+"es";
-    if(/[^aeiou]y$/.test(b)) return b.replace(/y$/,'ies'); return b+"s"; }
-  function pastSimple(b){ if(!b) return ""; if(irregularPast[b]) return irregularPast[b];
-    if(/e$/.test(b)) return b+"d"; if(/[^aeiou]y$/.test(b)) return b.replace(/y$/,'ied');
-    if(/[aeiou][^aeiou]$/.test(b)) return b+b.slice(-1)+"ed"; return b+"ed"; }
-  function pastPart(b){ if(!b) return ""; return irregularPart[b] || pastSimple(b); }
-  function withGloss(ar, en){ return en ? `${ar} — ${en}` : ar; }
+    <!-- Live list -->
+    <section class="card" style="grid-column: span 5;">
+      <div class="hd">المداخل المُضافة</div>
+      <div class="bd">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>اللفظة</th>
+              <th>الجذر</th>
+              <th>POS</th>
+              <th>المعنى</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
 
-  // ===== Arabic nominal builders (simple triliteral patterns)
-  const AR_DIAC = /[ًٌٍَُِّْۡ]/g;
-  function splitRoot(r){ const p = (r||"").replace(/\s+/g,'').split('-').filter(Boolean); return p.length===3?p:["","",""]; }
-  function replFAL(t, r){ const [F,A,L]=splitRoot(r); return t.replace(/ف/g,F||"ف").replace(/ع/g,A||"ع").replace(/ل/g,L||"ل"); }
-  function buildNominals(root, enPack, baseWord){
-    const faail = replFAL("فَاعِل", root);
-    const maf3ul = replFAL("مَفْعُول", root);
-    const makan  = replFAL("مَفْعَل", root);
-    const alat   = replFAL("مِفْعَل", root);
-    const nisba  = (baseWord||"").replace(AR_DIAC,'').replace(/ة$/,'ت') + "يّ";
-    return {
-      faail: withGloss(faail,  enPack.faail),
-      maf3ul: withGloss(maf3ul, enPack.maf3ul),
-      makan: withGloss(makan,  enPack.makan),
-      alat:  withGloss(alat,   enPack.alat),
-      nisba: withGloss(nisba,  enPack.nisba)
-    };
-  }
+        <div style="margin-top:10px" class="row">
+          <button class="btn primary" id="downloadJson">تنزيل JSON</button>
+          <button class="btn" id="copyJson">نسخ JSON</button>
+          <button class="btn" id="clearAll">مسح الكل</button>
+        </div>
 
-  // ===== Translation pack (fallback only)
-  function buildEnglishPack(enBase){
-    const base = normBase(enBase);
-    const gGer = gerund(base), g3s = thirdSing(base), gPast = pastSimple(base), gPart = pastPart(base);
-    return {
-      base,
-      past:       base ? `he ${gPast}` : "",
-      present:    base ? `he is ${gGer} / he will ${base}` : "",
-      imperative: base ? `${base}!` : "",
-      pastPass:   base ? `he was ${gPart}` : "",
-      presPass:   base ? `he is being ${gPart} / he will be ${gPart}` : "",
-      masdar:     base ? `${gGer}` : "",
-      faail:      base ? `the one who ${g3s}` : "",
-      maf3ul:     base ? `the one/thing that is ${gPart}` : "",
-      makan:      base ? `time or place of ${gGer}` : "",
-      alat:       base ? `tool/instrument used for ${gGer}` : "",
-      nisba:      base ? `related to ${base}` : "",
-      trans:      base ? `to ${base}` : ""
-    };
-  }
+        <div style="margin-top:12px">
+          <label>المخرَج (JSON)</label>
+          <textarea id="out" readonly></textarea>
+        </div>
+      </div>
+    </section>
 
-  // ===== Hans Wehr lookup (local JSON)
-  function getHWGloss(word){
-    if(!word) return null;
-    if(!HW || typeof HW!=='object') return null;
-    // try exact, then remove leading ال
-    const rec = HW[word] || HW[word.replace(/^ال/,'')];
-    if(!rec) return null;
-    if(typeof rec === 'string') return rec;
-    if(rec && typeof rec === 'object'){
-      return rec.gloss || rec.translation || rec.g || null;
+    <!-- Paste helper for Quran forms -->
+    <section class="card" style="grid-column: span 12;">
+      <div class="hd">لصق سريع لصيغ من مصدر خارجي</div>
+      <div class="bd">
+        <div class="muted" style="margin-bottom:8px">
+          يمكنك لصق سطر مثل: <code>lemma|root|ماضٍ|مضارع|أمر|ماضٍ مجهول|مضارع مجهول|مصدر1,مصدر2|اسم فاعل|اسم مفعول|اسم زمان/مكان|اسم آلة|base_en</code>
+        </div>
+        <textarea id="bulk" placeholder="مثال: رجع|ر-ج-ع|رَجَعَ|يَرجِعُ|اِرجِعْ|رُجِعَ|يُرجَعُ|رُجوع,رَجْع|راجِع|مَرجوع|مَرجِع|—|to return"></textarea>
+        <div class="row" style="margin-top:8px">
+          <button class="btn" id="parseBulk">ملء الحقول من السطر</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ------- state -------
+    const storeKey = "words_json_builder_v2";
+    let entries = JSON.parse(localStorage.getItem(storeKey) || "{}"); // { lemma: {...} }
+
+    // ------- helpers -------
+    const $ = (id) => document.getElementById(id);
+    const fields = [
+      "lemma","root","pos","base_en",
+      "f_past_a","f_pres_a","f_imper","f_past_p","f_pres_p",
+      "masdar","ism_fael","ism_mafoul","ism_zm","ism_ala","notes"
+    ];
+
+    function clean(s){ return (s||"").trim(); }
+    function arrFromCSV(s){
+      const t = clean(s);
+      if(!t) return [];
+      return t.split(/[,،]/).map(x=>clean(x)).filter(Boolean);
     }
-    return null;
-  }
 
-  // ===== Parsers
-  function almaanyLabel(w){ return `Almaany — ${w}`; }
-  function almaanyURL(w){ return `https://www.almaany.com/en/dict/ar-en/${encodeURIComponent(w)}/`; }
-
-  function parseLine(raw){
-    const parts = raw.split('|').map(s=>s.trim());
-    if(parts.length===9){
-      // Compact
-      const [word, root, past, pres, amr, pastP, presP, masdar, enBase] = parts;
-
-      // Prefer HW gloss if present; else fallback to enBase
-      const hw = getHWGloss(word);
-      const enTrans = hw || (enBase ? `to ${enBase.replace(/^to\\s+/i,'')}` : "");
-      const sourceLabel = hw ? "Hans Wehr (local JSON)" : almaanyLabel(word);
-      const sourceURL   = almaanyURL(word);
-
-      const en = buildEnglishPack(enBase);
-      const noms = buildNominals(root, en, word);
-
+    // Simple English phrase templating from base gloss
+    function glossTemplates(base){
+      // try to normalize "to X" → "X"
+      let v = base || "";
+      v = v.replace(/^to\s+/i,"").trim();
+      const bare = v || "do";
       return {
-        word, root,
-        v_madi:    withGloss(past,  en.past),
-        v_mudari:  withGloss(pres,  en.present),
-        v_amr:     withGloss(amr,   en.imperative),
-        v_madiP:   withGloss(pastP, en.pastPass),
-        v_mudariP: withGloss(presP, en.presPass),
-        masdarOut: withGloss(masdar, en.masdar),
-        faail: noms.faail, maf3ul: noms.maf3ul, makan: noms.makan, alat: noms.alat, nisba: noms.nisba,
-        enTrans, sourceLabel, sourceURL
+        past_a_en: `he ${bare}ed`,
+        pres_a_en: `he ${bare}s / he is ${bare}ing`,
+        imper_en: `${bare}!`,
+        past_p_en: `it was ${bare}ed`,
+        pres_p_en: `it is being ${bare}ed`,
+        agent_en: `the one who ${bare}s`,
+        patient_en: `the one/thing that is ${bare}ed`,
+        time_place_en: `time/place of ${bare}ing`,
+        instrument_en: `tool used for ${bare}ing`
       };
-    } else if(parts.length===16){
-      // Full
-      const [word, root, p1,p2,p3,p4,p5, m1, n1,n2,n3,n4,n5, enBase, srcLabel, srcURL] = parts;
-
-      // Prefer HW; else keep user's provided enBase
-      const hw = getHWGloss(word);
-      const en = buildEnglishPack(enBase);
-      const ensure = (s,g)=> /—/.test(s) ? s : withGloss(s,g);
-
-      return {
-        word, root,
-        v_madi:    ensure(p1, en.past),
-        v_mudari:  ensure(p2, en.present),
-        v_amr:     ensure(p3, en.imperative),
-        v_madiP:   ensure(p4, en.pastPass),
-        v_mudariP: ensure(p5, en.presPass),
-        masdarOut: ensure(m1, en.masdar),
-        faail: ensure(n1, en.faail),
-        maf3ul: ensure(n2, en.maf3ul),
-        makan: ensure(n3, en.makan),
-        alat:  ensure(n4, en.alat),
-        nisba: ensure(n5, en.nisba),
-        enTrans: hw || (enBase ? `to ${enBase.replace(/^to\\s+/i,'')}` : ""),
-        sourceLabel: hw ? "Hans Wehr (local JSON)" : (srcLabel || almaanyLabel(word)),
-        sourceURL:   srcURL || almaanyURL(word)
-      };
-    } else {
-      throw new Error(`عدد الحقول ${parts.length} غير مدعوم. استخدم 9 أو 16 حقلاً.`);
     }
-  }
 
-  function buildEntry(p){
-    return {
-      [p.word]: {
-        "root": p.root,
-        "pos": ["فعل"],
-        "verb": {
-          "فعل ماضٍ معروف": p.v_madi,
-          "فعل مضارع معروف": p.v_mudari,
-          "فعل أمر": p.v_amr,
-          "فعل ماضٍ مجهول": p.v_madiP,
-          "فعل مضارع مجهول": p.v_mudariP
+    function toRecord(obj){
+      const masdar = arrFromCSV(obj.masdar);
+      const rec = {
+        root: obj.root,
+        pos: [obj.pos],
+        verb: {
+          "فعل ماضٍ معروف": obj.f_past_a || "—",
+          "فعل مضارع معروف": obj.f_pres_a || "—",
+          "فعل أمر": obj.f_imper || "—",
+          "فعل ماضٍ مجهول": obj.f_past_p || "—",
+          "فعل مضارع مجهول": obj.f_pres_p || "—"
         },
-        "masdar": [ p.masdarOut ],
-        "nominals": {
-          "اسم فاعل":  p.faail,
-          "اسم مفعول": p.maf3ul,
-          "اسم زمان/مكان": p.makan,
-          "اسم آلة":  p.alat,
-          "نِسبة": p.nisba
+        masdar: masdar.length? masdar : ["—"],
+        nominals: {
+          "اسم فاعل": obj.ism_fael || "—",
+          "اسم مفعول": obj.ism_mafoul || "—",
+          "اسم زمان/مكان": obj.ism_zm || "—",
+          "اسم آلة": obj.ism_ala || "—"
         },
-        "translation": {
-          "en": p.enTrans,
-          "source": p.sourceLabel,
-          "url": p.sourceURL
-        }
+        english: {
+          base: obj.base_en || "",
+          ...glossTemplates(obj.base_en)
+        },
+        notes: obj.notes || ""
+      };
+      return rec;
+    }
+
+    function readForm(){
+      const o = {};
+      fields.forEach(f=>o[f]=clean($(f).value));
+      return o;
+    }
+    function writeForm(o){
+      fields.forEach(f => $(f).value = o[f] || "");
+    }
+    function clearForm(){ writeForm({}); }
+
+    function refreshTable(){
+      const tbody = $("tbl").querySelector("tbody");
+      tbody.innerHTML = "";
+      Object.keys(entries).forEach(lemma=>{
+        const e = entries[lemma];
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><span class="pill">${lemma}</span></td>
+          <td>${e.root||""}</td>
+          <td>${(e.pos||[""]).join(", ")}</td>
+          <td class="muted">${e.english?.base||""}</td>
+          <td>
+            <button class="btn" data-act="edit" data-id="${lemma}">تعديل</button>
+            <button class="btn warn" data-act="del" data-id="${lemma}">حذف</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      $("out").value = JSON.stringify(entries, null, 2);
+      localStorage.setItem(storeKey, JSON.stringify(entries));
+    }
+
+    function ensureLemmaUnique(lemma){
+      let l = lemma;
+      let i = 2;
+      while(entries[l]) { l = `${lemma}#${i++}`; }
+      return l;
+    }
+
+    // ------- events -------
+    $("autoFillEn").onclick = ()=>{
+      const base = clean($("base_en").value);
+      const t = glossTemplates(base);
+      $("notes").value = (clean($("notes").value) + "\n" +
+        `EN templates → past:${t.past_a_en} | pres:${t.pres_a_en} | imp:${t.imper_en}`).trim();
+    };
+
+    $("addEntry").onclick = ()=>{
+      const o = readForm();
+      if(!o.lemma){ alert("أدخل اللفظة (lemma)"); return; }
+      if(!o.root){ alert("أدخل الجذر"); return; }
+      const key = entries[o.lemma] ? o.lemma : ensureLemmaUnique(o.lemma);
+      entries[key] = toRecord(o);
+      refreshTable();
+    };
+
+    $("resetForm").onclick = clearForm;
+
+    $("tbl").onclick = (e)=>{
+      const btn = e.target.closest("button");
+      if(!btn) return;
+      const id = btn.dataset.id;
+      if(btn.dataset.act==="del"){
+        if(confirm("حذف المُدخل؟")){ delete entries[id]; refreshTable(); }
+      }else if(btn.dataset.act==="edit"){
+        const rec = entries[id];
+        writeForm({
+          lemma: id,
+          root: rec.root,
+          pos: (rec.pos||["فعل"])[0],
+          base_en: rec.english?.base || "",
+          f_past_a: rec.verb["فعل ماضٍ معروف"] || "",
+          f_pres_a: rec.verb["فعل مضارع معروف"] || "",
+          f_imper: rec.verb["فعل أمر"] || "",
+          f_past_p: rec.verb["فعل ماضٍ مجهول"] || "",
+          f_pres_p: rec.verb["فعل مضارع مجهول"] || "",
+          masdar: (rec.masdar||[]).join(", "),
+          ism_fael: rec.nominals["اسم فاعل"] || "",
+          ism_mafoul: rec.nominals["اسم مفعول"] || "",
+          ism_zm: rec.nominals["اسم زمان/مكان"] || "",
+          ism_ala: rec.nominals["اسم آلة"] || "",
+          notes: rec.notes || ""
+        });
+        window.scrollTo({top:0,behavior:"smooth"});
       }
     };
-  }
 
-  function downloadJSON(name, text){
-    const blob = new Blob([text], {type:"application/json;charset=utf-8"});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href=url; a.download=name; document.body.appendChild(a); a.click();
-    URL.revokeObjectURL(url); a.remove();
-  }
+    $("downloadJson").onclick = ()=>{
+      const blob = new Blob([JSON.stringify(entries,null,2)], {type:"application/json;charset=utf-8"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "words.json"; a.click();
+      setTimeout(()=>URL.revokeObjectURL(url), 500);
+    };
 
-  gen.addEventListener('click', ()=>{
-    const lines = ta.value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-    if(!lines.length){ status.textContent="أدخل سطورًا أولًا."; return; }
+    $("copyJson").onclick = async ()=>{
+      await navigator.clipboard.writeText(JSON.stringify(entries,null,2));
+      alert("تم نسخ JSON");
+    };
 
-    const out = {};
-    const errors = [];
-    let ok = 0;
-
-    for(let i=0;i<lines.length;i++){
-      try{
-        const parsed = parseLine(lines[i]);
-        Object.assign(out, buildEntry(parsed));
-        ok++;
-      }catch(e){
-        errors.push(`سطر ${i+1}: ${e.message}`);
+    $("clearAll").onclick = ()=>{
+      if(confirm("مسح جميع المداخل؟")){
+        entries = {};
+        refreshTable();
       }
-    }
+    };
 
-    if(errors.length){
-      status.innerHTML = `<span class="err">أخطاء: ${errors.length}</span> — أول خطأ: ${errors[0]}`;
-      return;
-    }
+    $("parseBulk").onclick = ()=>{
+      const line = $("bulk").value.trim();
+      if(!line) return;
+      const parts = line.split("|").map(s=>s.trim());
+      const [
+        lemma, root, fpa, fpr, imp, fpp, fppres, mas, fael, mafoul, zm, ala, base
+      ] = parts;
+      writeForm({
+        lemma, root,
+        pos: "فعل",
+        base_en: base || "",
+        f_past_a: fpa||"",
+        f_pres_a: fpr||"",
+        f_imper: imp||"",
+        f_past_p: fpp||"",
+        f_pres_p: fppres||"",
+        masdar: mas||"",
+        ism_fael: fael||"",
+        ism_mafoul: mafoul||"",
+        ism_zm: zm||"",
+        ism_ala: ala||""
+      });
+      window.scrollTo({top:0,behavior:"smooth"});
+    };
 
-    downloadJSON('morph.json', JSON.stringify(out, null, 2));
-    status.innerHTML = `<span class="ok">تم إنشاء ${ok} مدخلًا (morph.json)</span>`;
-  });
-})();
-</script>
+    // init
+    refreshTable();
+  </script>
 </body>
 </html>
-
